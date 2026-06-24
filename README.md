@@ -1,295 +1,268 @@
-# WeatherGuard Admin & Alerts System
+# WeatherGuard
 
-A secure, invite-only weather alert service connecting a web-based React admin dashboard to a live Telegram bot.
+WeatherGuard is a full-stack weather alert platform that enables secure user onboarding through social authentication, administrator-controlled access approval, and automated weather notifications via Telegram.
 
----
+##  Features
 
-## System Design
-
-### Database Schema
-
-```
-┌─────────────────────────────────────────────────┐
-│                     users                        │
-├──────────────────┬──────────────────────────────┤
-│ _id              │ ObjectId (PK)                │
-│ name             │ String (required)             │
-│ email            │ String (unique, required)     │
-│ avatar           │ String                        │
-│ provider         │ Enum: google | github         │
-│ providerId       │ String (required)             │
-│ role             │ Enum: user | admin            │
-│ status           │ Enum: pending | approved |    │
-│                  │       rejected                │
-│ telegramChatId   │ String (nullable)             │
-│ telegramUsername │ String (nullable)             │
-│ approvedAt       │ Date (nullable)               │
-│ approvedBy       │ String → User._id (nullable)  │
-│ createdAt        │ Date (auto)                   │
-│ updatedAt        │ Date (auto)                   │
-└──────────────────┴──────────────────────────────┘
-
-┌─────────────────────────────────────────────────┐
-│                     alerts                       │
-├──────────────────┬──────────────────────────────┤
-│ _id              │ ObjectId (PK)                │
-│ city             │ String                        │
-│ message          │ String (full formatted msg)   │
-│ temperature      │ Number                        │
-│ description      │ String                        │
-│ recipientCount   │ Number                        │
-│ triggeredAt      │ Date                          │
-│ createdAt        │ Date (auto)                   │
-└──────────────────┴──────────────────────────────┘
-```
-
-### Indexes
-- `users`: `{ provider, providerId }` — for fast OAuth upsert lookups
-- `users`: `{ status, telegramChatId }` — for broadcasting to approved+linked users
+* Google and GitHub OAuth Authentication
+* Request Access Workflow
+* Admin Approval Dashboard
+* Role-Based Access Control (Admin/User)
+* Telegram Bot Integration
+* Automated Weather Alert Notifications
+* User Management System
+* Secure JWT Authentication
+* Real-time Approval Notifications
 
 ---
 
-## Data Flow
-
-### 1. Sign-up & Access Request
-```
-User → "Login with Google/GitHub"
-  → OAuth redirect to /api/auth/google (or /github)
-  → Passport validates OAuth token
-  → UsersService.findOrCreate():
-      • If ADMIN_EMAIL matches → role=admin, status=approved
-      • Otherwise → role=user, status=pending
-  → JWT issued → redirect to /auth/callback?token=...
-  → Token stored in localStorage
-```
-
-### 2. Admin Approval Workflow
-```
-Admin → GET /api/users/pending  (JwtAuthGuard + AdminGuard)
-  → sees list of pending users
-
-Admin → PATCH /api/users/:id/approve
-  → UsersService.approveUser() sets status=approved
-  → If user has telegramChatId:
-      TelegramService.sendApprovalNotification() fires immediately
-  → Response returns updated user
-```
-
-### 3. Telegram Linking & Validation
-```
-User → opens Telegram, sends /start to @WeatherGuardBot
-  → Bot replies with their numeric Chat ID
-User → pastes Chat ID on dashboard (pre-validated for minimum 5 digits)
-  → PATCH /api/users/:id  { telegramChatId: "123456789" }
-  → Backend DTO validates /^\d+$/ → persists to DB
-
-User can also Unlink Telegram:
-  → DELETE /api/users/me/telegram → removes telegramChatId from user
-```
-
-### 4. Direct Weather Alert Delivery (No Redis/BullMQ Required)
-```
-node-cron (every 6h) → AlertsService.onModuleInit cron
-  → AlertsService.processWeatherAlert() executes inline directly
-
-AlertsService.processWeatherAlert():
-  1. WeatherService.getCurrentWeather()  ← OpenWeatherMap API
-  2. WeatherService.formatMessage()      ← builds Markdown string
-  3. UsersService.findApprovedWithTelegram()
-     ← MongoDB query: { status: "approved", telegramChatId: { $exists: true, $ne: null } }
-     ← ONLY approved users with linked Telegram are included
-  4. TelegramService.broadcastToMany()
-     ← Promise.allSettled() → send to each chatId individually
-  5. Alert record saved to DB (city, message, recipientCount)
-
-Admin can also → POST /api/alerts/trigger → executes processWeatherAlert() immediately
-```
-
-**The gate that ensures only approved users receive alerts:**
-`UsersService.findApprovedWithTelegram()` always queries `status: "approved"` — unapproved users are filtered at the DB query level, not application logic.
-
----
+# System Design
 
 ## Architecture
 
+The application follows a modular architecture consisting of:
+
+### Frontend (/admin)
+
+* React + TypeScript
+* Vite
+* React Router
+* Axios
+* Context API / State Management
+
+### Backend (/api)
+
+* NestJS
+* MongoDB
+* Passport.js OAuth Strategies
+* JWT Authentication
+* Telegram Bot API
+
+---
+
+#  Database Schema
+
+## User Schema
+
+```ts
+User {
+  _id: ObjectId
+  name: string
+  email: string
+  avatar: string
+
+  provider: 'google' | 'github'
+  providerId: string
+
+  role: 'admin' | 'user'
+
+  status: 'pending' | 'approved' | 'rejected'
+
+  telegramChatId?: string
+
+  createdAt: Date
+  updatedAt: Date
+}
 ```
-api/
-├── src/
-│   ├── auth/                   # OAuth + JWT
-│   │   ├── strategies/
-│   │   │   ├── google.strategy.ts
-│   │   │   ├── github.strategy.ts
-│   │   │   └── jwt.strategy.ts
-│   │   ├── auth.controller.ts
-│   │   ├── auth.service.ts
-│   │   └── auth.module.ts
-│   ├── users/                  # User schema + CRUD + approval
-│   │   ├── dto/
-│   │   │   └── update-user.dto.ts
-│   │   ├── user.schema.ts
-│   │   ├── users.service.ts
-│   │   ├── users.controller.ts
-│   │   └── users.module.ts
-│   ├── alerts/                 # Direct cron alerts scheduler
-│   │   ├── alert.schema.ts
-│   │   ├── alerts.service.ts
-│   │   ├── alerts.controller.ts
-│   │   └── alerts.module.ts
-│   ├── telegram/               # Telegraf bot + Status/Test endpoints
-│   │   ├── telegram.controller.ts
-│   │   ├── telegram.service.ts
-│   │   └── telegram.module.ts
-│   ├── weather/                # OpenWeatherMap integration
-│   │   ├── weather.service.ts
-│   │   └── weather.module.ts
-│   ├── common/
-│   │   ├── guards/
-│   │   │   ├── jwt-auth.guard.ts
-│   │   │   └── admin.guard.ts
-│   │   └── decorators/
-│   │       └── current-user.decorator.ts
-│   ├── app.module.ts
-│   └── main.ts
-admin/
-├── src/
-│   ├── api/           # Typed API client (axios)
-│   ├── components/    # Layout, TelegramIntegration, guards, shared UI
-│   ├── hooks/         # useAuth
-│   ├── pages/         # LoginPage, Dashboard, PendingUsers, AllUsers, Alerts
-│   ├── App.tsx
-│   └── main.tsx
+
+## Access Flow States
+
+```txt
+Pending  →  Approved
+Pending  →  Rejected
 ```
 
 ---
 
-## Tech Stack
+# Data Flow
+## 1. Social Login
 
-| Layer | Technology |
-|-------|-----------|
-| API Framework | NestJS 10 (Modular) |
-| Frontend | React 18 + Vite + Tailwind CSS |
-| Database | MongoDB + Mongoose |
-| Auth | Passport.js (Google OAuth2, GitHub OAuth2) + JWT |
-| Scheduler | node-cron (Direct inline execution) |
-| Telegram Bot | Telegraf |
-| Weather Data | OpenWeatherMap API |
-| State Management | TanStack Query (React Query) |
+1. User signs in using Google or GitHub.
+2. Backend authenticates using Passport strategies.
+3. If user does not exist, a new user is created with:
+
+```txt
+status = "pending"
+role = "user"
+```
+
+4. User cannot receive weather alerts until approved.
 
 ---
 
-## Setup Instructions
+## 2. Request Access Flow
 
-### Prerequisites
-- Node.js 18+
-- MongoDB (local or Atlas)
-- Google OAuth credentials
-- GitHub OAuth App
-- Telegram Bot Token (from @BotFather)
-- OpenWeatherMap API key (free tier)
+1. Newly authenticated users are redirected to the Request Access page.
+2. User requests platform access.
+3. User remains in "pending" state.
 
-### 1. Clone & install
+---
+
+## 3. Admin Approval Flow
+
+1. Admin logs into dashboard.
+2. Admin views all pending users.
+3. Admin approves or rejects a user.
+
+If approved:
+
+```txt
+status = "approved"
+```
+
+The backend immediately sends a Telegram notification informing the user that access has been granted.
+
+---
+
+## 4. Weather Alert Flow
+
+A scheduled background process periodically checks weather conditions.
+
+Before sending alerts, the system performs:
+
+```ts
+User.find({
+  status: 'approved',
+  telegramChatId: { $exists: true }
+})
+```
+
+Only users satisfying both conditions receive alerts:
+
+* status = approved
+* Telegram account connected
+
+This ensures pending or rejected users never receive notifications.
+
+---
+
+# Project Structure
+
+```txt
+weatherguard/
+│
+├── api/
+│   ├── src/
+│   │   ├── auth/
+│   │   ├── users/
+│   │   ├── alerts/
+│   │   ├── telegram/
+│   │   ├── weather/
+│   │   └── common/
+│
+├── admin/
+│   ├── src/
+│   │   ├── pages/
+│   │   ├── components/
+│   │   ├── hooks/
+│   │   ├── api/
+│   │   └── context/
+│
+└── README.md
+```
+
+---
+
+# Setup Instructions
+
+## Clone Repository
 
 ```bash
-git clone https://github.com/your-username/weatherguard-admin.git
-cd weatherguard-admin
-
-# Install API deps
-cd api && npm install
-
-# Install admin deps
-cd ../admin && npm install
+git clone https://github.com/Madeshiya22/weatherguard.git
 ```
 
-### 2. Configure the API
+---
+
+## Backend Setup
 
 ```bash
 cd api
-cp .env.example .env
+npm install
 ```
 
-Fill in `.env`:
+Create `.env`
 
 ```env
 PORT=3000
-MONGODB_URI=mongodb://localhost:27017/weatherguard
 
-JWT_SECRET=change_this_to_a_long_random_string
-JWT_EXPIRY=7d
+MONGODB_URI=
 
-# Google OAuth — console.cloud.google.com
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-GOOGLE_CALLBACK_URL=http://localhost:3000/api/auth/google/callback
+JWT_SECRET=
 
-# GitHub OAuth — github.com/settings/developers
-GITHUB_CLIENT_ID=...
-GITHUB_CLIENT_SECRET=...
-GITHUB_CALLBACK_URL=http://localhost:3000/api/auth/github/callback
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_CALLBACK_URL=
 
-# Telegram — @BotFather on Telegram → /newbot
-TELEGRAM_BOT_TOKEN=...
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+GITHUB_CALLBACK_URL=
 
-# openweathermap.org → free API key
-OPENWEATHER_API_KEY=...
-OPENWEATHER_CITY=London
+TELEGRAM_BOT_TOKEN=
 
-# This email gets admin role automatically on first login
-ADMIN_EMAIL=your-email@example.com
-
-FRONTEND_URL=http://localhost:5173
+FRONTEND_URL=
 ```
 
-### 3. Run the API
+Run Backend
 
 ```bash
-cd api
 npm run start:dev
 ```
 
-API runs at `http://localhost:3000/api`
+---
 
-### 4. Run the Admin Panel
+## Frontend Setup
 
 ```bash
 cd admin
+npm install
 npm run dev
 ```
 
-Frontend runs at `http://localhost:5173`
+Create `.env`
 
-### 5. Set up the Telegram Bot
-
-1. Message [@BotFather](https://t.me/BotFather) on Telegram
-2. Send `/newbot` and follow the prompts
-3. Copy the bot token into `TELEGRAM_BOT_TOKEN`
-4. Users send `/start` to your bot to get their Chat ID
+```env
+VITE_API_URL=http://localhost:3000/api
+```
 
 ---
 
-## API Endpoints
+#  Demo
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET | /api/auth/google | — | Start Google OAuth |
-| GET | /api/auth/github | — | Start GitHub OAuth |
-| GET | /api/users/me | JWT | Get current user |
-| GET | /api/users/pending | JWT + Admin | List pending users |
-| GET | /api/users/approved | JWT + Admin | List approved users |
-| GET | /api/users | JWT + Admin | List all users |
-| PATCH | /api/users/:id/approve | JWT + Admin | Approve user |
-| PATCH | /api/users/:id/reject | JWT + Admin | Reject user |
-| PATCH | /api/users/:id | JWT | Update user (e.g. telegramChatId) |
-| DELETE | /api/users/me/telegram | JWT | Unlink Telegram Chat ID |
-| GET | /api/telegram/status | — | Check Telegram Bot status |
-| POST | /api/telegram/test | — | Send test message to a specific Chat ID |
-| GET | /api/alerts | JWT + Admin | List recent alerts |
-| POST | /api/alerts/trigger | JWT + Admin | Trigger manual alert |
+The demo video covers:
+
+* Social Login
+* Request Access Flow
+* Admin Dashboard Approval Workflow
+* Telegram Approval Notification
+* Simulated Weather Alert Delivery
 
 ---
 
-## Key Design Decisions
+#  Tech Stack
 
-- **Direct Cron Alerts (No Redis/BullMQ)**: To eliminate infrastructure overhead and simplify deployment across environments (like Windows without Redis), alerts are processed directly in memory via `node-cron` every 6 hours and manually via `POST /api/alerts/trigger`.
-- **forwardRef circular dependency** between `UsersModule` and `TelegramModule` is handled with NestJS's `forwardRef()` — the Telegram service needs the Users service to broadcast, and the Users controller needs Telegram to send approval notifications.
-- **Status gate at query level**: alerts are never filtered in application code — MongoDB query `{ status: "approved", telegramChatId: { $ne: null } }` is the single source of truth for who gets alerts.
-- **Admin bootstrap**: the first user whose email matches `ADMIN_EMAIL` env var gets `role=admin` and `status=approved` automatically — no manual DB seeding required.
+## Frontend
+
+* React
+* TypeScript
+* Vite
+* Axios
+
+## Backend
+
+* NestJS
+* MongoDB
+* Mongoose
+* Passport.js
+* JWT
+
+## Integrations
+
+* Google OAuth
+* GitHub OAuth
+* Telegram Bot API
+
+---
+
+#  Author
+
+Rahul Madeshiya
