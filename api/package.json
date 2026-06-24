@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "WeatherGuard Admin API",
   "scripts": {
-    "build": "nest build",
+    "build": "npm install --include=dev && nest build",
     "start": "node dist/main",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main"
