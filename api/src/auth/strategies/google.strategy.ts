@@ -15,6 +15,10 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       'GOOGLE CALLBACK URL:',
       config.get('GOOGLE_CALLBACK_URL'),
     );
+    console.log('CLIENT ID:', config.get('GOOGLE_CLIENT_ID'));
+    console.log('CLIENT SECRET EXISTS:', !!config.get('GOOGLE_CLIENT_SECRET'));
+    console.log('CALLBACK URL:', config.get('GOOGLE_CALLBACK_URL'));
+
     super({
       clientID: config.get('GOOGLE_CLIENT_ID'),
       clientSecret: config.get('GOOGLE_CLIENT_SECRET'),
