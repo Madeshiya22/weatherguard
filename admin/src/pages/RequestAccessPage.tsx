@@ -1,6 +1,8 @@
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
 export default function RequestAccessPage() {
-  const handleGoogle = () => (window.location.href = '/api/auth/google');
-  const handleGithub = () => (window.location.href = '/api/auth/github');
+  const handleGoogle = () => (window.location.href = `${API_URL}/auth/google`);
+  const handleGithub = () => (window.location.href = `${API_URL}/auth/github`);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">

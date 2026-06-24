@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
@@ -10,11 +12,11 @@ export default function LoginPage() {
   }, [token, navigate]);
 
   const handleGoogle = () => {
-    window.location.href = '/api/auth/google';
+    window.location.href = `${API_URL}/auth/google`;
   };
 
   const handleGithub = () => {
-    window.location.href = '/api/auth/github';
+    window.location.href = `${API_URL}/auth/github`;
   };
 
   return (
