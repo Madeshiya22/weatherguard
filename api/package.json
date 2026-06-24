@@ -4,9 +4,9 @@
   "description": "WeatherGuard Admin API",
   "scripts": {
     "build": "npm install --include=dev && nest build",
-    "start": "node dist/main",
+    "start": "node dist/main.js",
     "start:dev": "nest start --watch",
-    "start:prod": "node dist/main"
+    "start:prod": "node dist/main.js"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",
