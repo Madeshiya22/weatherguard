@@ -10,6 +10,7 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
   constructor(
     private config: ConfigService,
     private usersService: UsersService,
+    
   ) {
     super({
       clientID: config.get('GITHUB_CLIENT_ID'),
@@ -17,6 +18,7 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
       callbackURL: config.get('GITHUB_CALLBACK_URL'),
       scope: ['user:email'],
     });
+    
   }
 
   async validate(
@@ -36,4 +38,5 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
     });
     done(null, user);
   }
+
 }
