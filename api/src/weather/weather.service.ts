@@ -13,6 +13,8 @@ export interface WeatherData {
   alert?: string;
 }
 
+// Function: WeatherService
+// Kya kar raha hai: OpenWeatherMap API se real-time weather data fetch aur format karne ka dedicated service hai.
 @Injectable()
 export class WeatherService {
   private readonly logger = new Logger(WeatherService.name);
@@ -20,6 +22,9 @@ export class WeatherService {
 
   constructor(private config: ConfigService) {}
 
+  // Function: getCurrentWeather
+  // Kya kar raha hai: OpenWeatherMap ke API ko call karta hai. Agar koi city pass na ho, toh .env se 'OPENWEATHER_CITY' (default 'London') nikaalta hai aur metric units (Celsius) mein weather nikaalta hai.
+  // Relation / Backend: AlertsService.processWeatherAlert() (cron job & manual trigger) isko call karta hai weather data nikaalne ke liye.
   async getCurrentWeather(city?: string): Promise<WeatherData> {
     const targetCity = city || this.config.get('OPENWEATHER_CITY', 'London');
     const apiKey = this.config.get('OPENWEATHER_API_KEY');
@@ -45,6 +50,8 @@ export class WeatherService {
     }
   }
 
+  // Function: detectAlert
+  // Kya kar raha hai: Incoming weather data ke base par extreme conditions check karta hai (jaise temp > 38C, temp < -10C, wind > 20m/s, ya thunderstorm/heavy rain). Agar match ho toh special warning string return karta hai.
   private detectAlert(data: any): string | undefined {
     const temp = data.main.temp;
     const windSpeed = data.wind.speed;
@@ -59,6 +66,9 @@ export class WeatherService {
     return undefined;
   }
 
+  // Function: formatMessage
+  // Kya kar raha hai: Telegram par bhejane ke liye weather data ko sundar Markdown formatted text mein convert karta hai.
+  // Relation / Backend: AlertsService.processWeatherAlert() isko call karke broadcast message generate karta hai.
   formatMessage(weather: WeatherData): string {
     const lines = [
       `🌍 *Weather Alert — ${weather.city}*`,

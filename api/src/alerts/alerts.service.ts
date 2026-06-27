@@ -19,7 +19,8 @@ export class AlertsService implements OnModuleInit {
   ) {}
 
   // Function: onModuleInit
-  // Kya kar raha hai: NestJS server start hote hi yeh function call hota hai aur node-cron ke through har 6 ghante ('0 */6 * * *') par processWeatherAlert() run karne ka timer set kar deta hai.
+  // Kya kar raha hai: NestJS server start hote hi yeh function call hota hai aur 
+  // node-cron ke through har 6 ghante ('0 */6 * * *') par processWeatherAlert() run karne ka timer set kar deta hai.
   // Relation / Component: Yeh backend ka automated background scheduler hai jisko frontend ki kisi request ki zarurat nahi hoti.
   onModuleInit() {
     cron.schedule('0 */6 * * *', async () => {
