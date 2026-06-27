@@ -3,18 +3,29 @@ import { useNavigate } from 'react-router-dom';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
+// Function: LoginPage (Component)
+// Kya kar raha hai: User ko Google aur GitHub login options dikhata hai.
+// Relation / Backend: Backend ke OAuth endpoints ko call karta hai aur successful login ke baad user 'CallbackPage.tsx' par feka jata hai.
 export default function LoginPage() {
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
 
+  // Function: useEffect (check token)
+  // Kya kar raha hai: Agar user pehle se logged in hai (token exist karta hai), toh bina login dikhaye use '/dashboard' par redirect kar deta hai.
   useEffect(() => {
     if (token) navigate('/dashboard', { replace: true });
   }, [token, navigate]);
 
+  // Function: handleGoogle
+  // Kya kar raha hai: Browser ko backend ke Google OAuth endpoint par redirect karta hai.
+  // Relation / Backend: Backend ke 'AuthController.googleLogin' (GET /api/auth/google) par bhejta hai.
   const handleGoogle = () => {
     window.location.href = `${API_URL}/auth/google`;
   };
 
+  // Function: handleGithub
+  // Kya kar raha hai: Browser ko backend ke GitHub OAuth endpoint par redirect karta hai.
+  // Relation / Backend: Backend ke 'AuthController.githubLogin' (GET /api/auth/github) par bhejta hai.
   const handleGithub = () => {
     window.location.href = `${API_URL}/auth/github`;
   };
@@ -75,3 +86,4 @@ export default function LoginPage() {
     </div>
   );
 }
+

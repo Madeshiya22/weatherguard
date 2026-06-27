@@ -15,7 +15,7 @@ export default function Layout() {
     <div className="flex h-screen overflow-hidden bg-gray-50">
       <aside className="flex w-64 flex-col bg-gray-900 text-white">
         <div className="flex h-16 items-center px-6 text-xl font-bold text-blue-400">
-          ⛅ WeatherGuard
+          ⛅  WeatherGuard
         </div>
         <nav className="flex-1 space-y-1 px-3 py-4">
           {navItems

@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getPendingUsers, approveUser, rejectUser, User } from '../api/users';
 
+// Function: UserCard (Helper Component)
+// Kya kar raha hai: Single pending user ka profile info aur Approve/Reject buttons display karta hai.
 function UserCard({ user, onApprove, onReject, isPending }: {
   user: User;
   onApprove: () => void;
@@ -45,14 +47,22 @@ function UserCard({ user, onApprove, onReject, isPending }: {
   );
 }
 
+// Function: PendingUsersPage (Main Component)
+// Kya kar raha hai: TanStack Query use karke pending users fetch karta hai aur Admin ko unko approve ya reject karne ki ability deta hai.
+// Relation / Backend: Backend ke 'UsersController.findPending', 'UsersController.approve', aur 'UsersController.reject' endpoints ko hit karta hai.
 export default function PendingUsersPage() {
   const queryClient = useQueryClient();
+  
+  // Function: useQuery (fetch pending users)
+  // Kya kar raha hai: Har 15 seconds (refetchInterval: 15_000) mein GET /api/users/pending ko poll karta hai taaki naye requests live update hote rahein.
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['users', 'pending'],
     queryFn: getPendingUsers,
     refetchInterval: 15_000,
   });
 
+  // Function: approveMutation
+  // Kya kar raha hai: PATCH /api/users/:id/approve API call karta hai. Success par queryClient.invalidateQueries(['users']) call karke UI ko turant refresh karta hai.
   const approveMutation = useMutation({
     mutationFn: approveUser,
     onSuccess: () => {
@@ -60,6 +70,8 @@ export default function PendingUsersPage() {
     },
   });
 
+  // Function: rejectMutation
+  // Kya kar raha hai: PATCH /api/users/:id/reject API call karta hai. Success par list refresh karta hai.
   const rejectMutation = useMutation({
     mutationFn: rejectUser,
     onSuccess: () => {
@@ -101,3 +113,4 @@ export default function PendingUsersPage() {
     </div>
   );
 }
+

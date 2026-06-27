@@ -2,16 +2,23 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getAlerts, triggerAlert, Alert } from '../api/alerts';
 
+// Function: AlertsPage (Main Component)
+// Kya kar raha hai: Recent sent weather alerts display karta hai aur Admin ko manual alert broadcast trigger karne ki ability deta hai.
+// Relation / Backend: Backend ke 'AlertsController.getRecent' (GET /api/alerts) aur 'AlertsController.triggerManual' (POST /api/alerts/trigger) endpoints ko hit karta hai.
 export default function AlertsPage() {
   const queryClient = useQueryClient();
   const [triggered, setTriggered] = useState(false);
 
+  // Function: useQuery (fetch alerts)
+  // Kya kar raha hai: Har 30 seconds (refetchInterval: 30_000) mein GET /api/alerts fetch karta hai taaki alert history list auto-update hoti rahe.
   const { data: alerts = [], isLoading } = useQuery({
     queryKey: ['alerts'],
     queryFn: () => getAlerts(20),
     refetchInterval: 30_000,
   });
 
+  // Function: triggerMutation
+  // Kya kar raha hai: 'Trigger Manual Alert' button click par POST /api/alerts/trigger hit karta hai. Success hone par success banner dikhata hai aur list invalidate karke refresh karta hai.
   const triggerMutation = useMutation({
     mutationFn: triggerAlert,
     onSuccess: () => {
@@ -65,6 +72,8 @@ export default function AlertsPage() {
   );
 }
 
+// Function: AlertCard (Helper Component)
+// Kya kar raha hai: Individual weather alert card display karta hai (City, temp, description, aur kitne logo ko send hua).
 function AlertCard({ alert }: { alert: Alert }) {
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -89,3 +98,4 @@ function AlertCard({ alert }: { alert: Alert }) {
     </div>
   );
 }
+
